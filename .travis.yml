@@ -1,0 +1,26 @@
+language: go
+
+sudo: false
+
+env:
+  global:
+    - GO111MODULE=on
+
+go:
+  - "1.12"
+  - "1.11"
+
+cache:
+  directories:
+    - $GOPATH/pkg/mod
+
+script:
+  - if [ $TRAVIS_GO_VERSION == "1.12" ]; then
+      make setup_ci || exit 1;
+      go mod verify || exit 1;
+      go mod vendor && GO111MODULE=off PATH=$TRAVIS_BUILD_DIR/bin:$PATH make lint || exit 1;
+      rm -rf vendor;
+    fi
+  - make build
+  - make test
+  - "[ $TRAVIS_GO_VERSION != '1.12' ] || make upload_coverage"
