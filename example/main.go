@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/cep21/cwpagedmetricput"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/cep21/cwpagedmetricput"
 
 	"go.opencensus.io/metric/metricexport"
 

@@ -11,8 +11,8 @@ cwopencensusexporter implements the opencensus Exporter API and allows you to se
 ```go
 	awsClient := cloudwatch.New(session.Must(session.NewSession()))
 	exporter, sender := cwopencensusexporter.DefaultExporter(awsClient)
-    go sender.Run()
-    defer sender.Shutdown(context.Background())
+	go sender.Run()
+	defer sender.Shutdown(context.Background())
 	ir, err := metricexport.NewIntervalReader(&metricexport.Reader{}, exporter)
 	if err != nil {
 		panic(err)
