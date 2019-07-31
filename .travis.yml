@@ -8,7 +8,6 @@ env:
 
 go:
   - "1.12"
-  - "1.11"
 
 cache:
   directories:
