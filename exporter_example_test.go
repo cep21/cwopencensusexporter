@@ -2,13 +2,11 @@ package cwopencensusexporter_test
 
 import (
 	"context"
-	"log"
-	"time"
-
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/cep21/cwopencensusexporter"
 	"go.opencensus.io/metric/metricexport"
+	"log"
 )
 
 func ExampleExporter_ExportMetrics() {
@@ -28,7 +26,6 @@ func ExampleExporter_ExportMetrics() {
 	if err != nil {
 		panic(err)
 	}
-	ir.ReportingInterval = time.Second * 60
 	if err := ir.Start(); err != nil {
 		panic(err)
 	}

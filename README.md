@@ -17,7 +17,6 @@ cwopencensusexporter implements the opencensus Exporter API and allows you to se
 	if err != nil {
 		panic(err)
 	}
-	ir.ReportingInterval = time.Second * 60
 	if err := ir.Start(); err != nil {
 		panic(err)
 	}
