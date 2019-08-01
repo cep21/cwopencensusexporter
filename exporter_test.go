@@ -97,6 +97,7 @@ func TestFullFlow(t *testing.T) {
 	mc := &mockCwclient{}
 	sender := &BatchMetricDatumSender{
 		CloudWatchClient: mc,
+		BatchDelay:       time.Nanosecond,
 		OnFailedSend: func(datum []*cloudwatch.MetricDatum, err error) {
 			panic(err)
 		},
@@ -123,6 +124,7 @@ func TestFullFlow(t *testing.T) {
 	t.Run("first_dist", checkFirstDist(mc, &e))
 	t.Run("second_dist", checkSecondDist(mc, &e))
 	t.Run("third_dist", checkThirdDist(mc, &e))
+	t.Run("check_summaruy", checkSummary(mc, &e))
 }
 
 func checkFirstDist(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
@@ -268,5 +270,60 @@ func commonDist(val *metricdata.Distribution) *metricdata.Metric {
 				},
 			},
 		},
+	}
+}
+
+func checkSummary(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
+	return func(t *testing.T) {
+		m3 := &metricdata.Metric{
+			Descriptor: metricdata.Descriptor{
+				Name: "m3",
+				Type: metricdata.TypeSummary,
+				LabelKeys: []metricdata.LabelKey{
+					{
+						Key: "name",
+					},
+				},
+			},
+			Resource: nil,
+			TimeSeries: []*metricdata.TimeSeries{
+				{
+					LabelValues: []metricdata.LabelValue{
+						{
+							Value:   "summary",
+							Present: true,
+						},
+					},
+					StartTime: time.Now(),
+					Points: []metricdata.Point{
+						{
+							Time: time.Now(),
+							Value: &metricdata.Summary{
+								Count:          10,
+								Sum:            14,
+								HasCountAndSum: true,
+								Snapshot: metricdata.Snapshot{
+									Count: 10,
+									Sum:   14,
+									Percentiles: map[float64]float64{
+										.1:  1,
+										.5:  2,
+										.9:  3,
+										.99: 4,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
+		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
+			return *m.MetricName == "m3" &&
+				*m.Dimensions[0].Name == "name" && *m.Dimensions[0].Value == "summary" &&
+				*m.StatisticValues.Maximum == 4 && *m.StatisticValues.Minimum == 1 &&
+				*m.StatisticValues.SampleCount == 10 && *m.StatisticValues.Sum == 14
+		}))
 	}
 }
