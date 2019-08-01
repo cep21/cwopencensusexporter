@@ -41,9 +41,9 @@ func (m *mockCwclient) check(check func(m *cloudwatch.MetricDatum) bool) bool {
 func (m *mockCwclient) wait(ctx context.Context, check func(m *cloudwatch.MetricDatum) bool) error {
 	for {
 		select {
-		case <- ctx.Done():
+		case <-ctx.Done():
 			return ctx.Err()
-		case <- time.After(time.Millisecond):
+		case <-time.After(time.Millisecond):
 			if m.check(check) {
 				return nil
 			}
@@ -83,25 +83,25 @@ func TestFullFlow(t *testing.T) {
 		Descriptor: metricdata.Descriptor{
 			Name: "m1",
 			Type: metricdata.TypeGaugeFloat64,
-			LabelKeys:[]metricdata.LabelKey{
+			LabelKeys: []metricdata.LabelKey{
 				{
 					Key: "name",
 				},
 			},
 		},
-		Resource:   nil,
+		Resource: nil,
 		TimeSeries: []*metricdata.TimeSeries{
 			{
 				LabelValues: []metricdata.LabelValue{
 					{
-						Value: "john",
+						Value:   "john",
 						Present: true,
 					},
 				},
 				StartTime: time.Now(),
 				Points: []metricdata.Point{
 					{
-						Time: time.Now(),
+						Time:  time.Now(),
 						Value: 1.0,
 					},
 				},
