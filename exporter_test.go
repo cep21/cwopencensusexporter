@@ -120,6 +120,7 @@ func TestFullFlow(t *testing.T) {
 	t.Run("single_float", checkSingleGauge(mc, &e))
 	t.Run("first_dist", checkFirstDist(mc, &e))
 	t.Run("second_dist", checkSecondDist(mc, &e))
+	t.Run("third_dist", checkThirdDist(mc, &e))
 }
 
 func checkFirstDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
@@ -231,6 +232,63 @@ func checkSecondDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
 		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
 		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
 			return *m.MetricName == "m2" && m.Value != nil && *m.Value == 1.5
+		}))
+	}
+}
+
+func checkThirdDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+	return func(t *testing.T) {
+		m3 := &metricdata.Metric{
+			Descriptor: metricdata.Descriptor{
+				Name: "m2",
+				Type: metricdata.TypeCumulativeDistribution,
+				LabelKeys: []metricdata.LabelKey{
+					{
+						Key: "name",
+					},
+				},
+			},
+			Resource: nil,
+			TimeSeries: []*metricdata.TimeSeries{
+				{
+					LabelValues: []metricdata.LabelValue{
+						{
+							Value:   "jack",
+							Present: true,
+						},
+					},
+					StartTime: time.Now(),
+					Points: []metricdata.Point{
+						{
+							Time: time.Now(),
+							Value: &metricdata.Distribution{
+								Count:                 13,
+								Sum:                   17,
+								SumOfSquaredDeviation: 0,
+								BucketOptions: &metricdata.BucketOptions{
+									Bounds: []float64{1, 2},
+								},
+								Buckets: []metricdata.Bucket{
+									{
+										Count: 0,
+									},
+									{
+										Count: 7,
+									},
+									{
+										Count: 5,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
+		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
+			return *m.MetricName == "m2" && m.Values != nil &&
+				*m.Values[0] == 1.5 && *m.Counts[0] == 2
 		}))
 	}
 }
