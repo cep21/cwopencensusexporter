@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"go.opencensus.io/metric/metricexport"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
@@ -53,7 +55,7 @@ func (m *mockCwclient) wait(ctx context.Context, check func(m *cloudwatch.Metric
 
 var _ CloudWatchClient = &mockCwclient{}
 
-func checkSingleGauge(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+func checkSingleGauge(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
 	return func(t *testing.T) {
 		m1 := &metricdata.Metric{
 			Descriptor: metricdata.Descriptor{
@@ -123,7 +125,7 @@ func TestFullFlow(t *testing.T) {
 	t.Run("third_dist", checkThirdDist(mc, &e))
 }
 
-func checkFirstDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+func checkFirstDist(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
 	return func(t *testing.T) {
 		m3 := &metricdata.Metric{
 			Descriptor: metricdata.Descriptor{
@@ -180,55 +182,27 @@ func checkFirstDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
 	}
 }
 
-func checkSecondDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+func checkSecondDist(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
 	return func(t *testing.T) {
-		m3 := &metricdata.Metric{
-			Descriptor: metricdata.Descriptor{
-				Name: "m2",
-				Type: metricdata.TypeCumulativeDistribution,
-				LabelKeys: []metricdata.LabelKey{
-					{
-						Key: "name",
-					},
-				},
+		m3 := commonDist(&metricdata.Distribution{
+			Count:                 11,
+			Sum:                   15,
+			SumOfSquaredDeviation: 0,
+			BucketOptions: &metricdata.BucketOptions{
+				Bounds: []float64{1, 2},
 			},
-			Resource: nil,
-			TimeSeries: []*metricdata.TimeSeries{
+			Buckets: []metricdata.Bucket{
 				{
-					LabelValues: []metricdata.LabelValue{
-						{
-							Value:   "jack",
-							Present: true,
-						},
-					},
-					StartTime: time.Now(),
-					Points: []metricdata.Point{
-						{
-							Time: time.Now(),
-							Value: &metricdata.Distribution{
-								Count:                 11,
-								Sum:                   15,
-								SumOfSquaredDeviation: 0,
-								BucketOptions: &metricdata.BucketOptions{
-									Bounds: []float64{1, 2},
-								},
-								Buckets: []metricdata.Bucket{
-									{
-										Count: 0,
-									},
-									{
-										Count: 5,
-									},
-									{
-										Count: 5,
-									},
-								},
-							},
-						},
-					},
+					Count: 0,
+				},
+				{
+					Count: 5,
+				},
+				{
+					Count: 5,
 				},
 			},
-		}
+		})
 		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
 		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
 			return *m.MetricName == "m2" && m.Value != nil && *m.Value == 1.5
@@ -236,59 +210,63 @@ func checkSecondDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
 	}
 }
 
-func checkThirdDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+func checkThirdDist(mc *mockCwclient, e metricexport.Exporter) func(t *testing.T) {
 	return func(t *testing.T) {
-		m3 := &metricdata.Metric{
-			Descriptor: metricdata.Descriptor{
-				Name: "m2",
-				Type: metricdata.TypeCumulativeDistribution,
-				LabelKeys: []metricdata.LabelKey{
-					{
-						Key: "name",
-					},
-				},
+		m3 := commonDist(&metricdata.Distribution{
+			Count:                 13,
+			Sum:                   17,
+			SumOfSquaredDeviation: 0,
+			BucketOptions: &metricdata.BucketOptions{
+				Bounds: []float64{1, 2},
 			},
-			Resource: nil,
-			TimeSeries: []*metricdata.TimeSeries{
+			Buckets: []metricdata.Bucket{
 				{
-					LabelValues: []metricdata.LabelValue{
-						{
-							Value:   "jack",
-							Present: true,
-						},
-					},
-					StartTime: time.Now(),
-					Points: []metricdata.Point{
-						{
-							Time: time.Now(),
-							Value: &metricdata.Distribution{
-								Count:                 13,
-								Sum:                   17,
-								SumOfSquaredDeviation: 0,
-								BucketOptions: &metricdata.BucketOptions{
-									Bounds: []float64{1, 2},
-								},
-								Buckets: []metricdata.Bucket{
-									{
-										Count: 0,
-									},
-									{
-										Count: 7,
-									},
-									{
-										Count: 5,
-									},
-								},
-							},
-						},
-					},
+					Count: 0,
+				},
+				{
+					Count: 7,
+				},
+				{
+					Count: 5,
 				},
 			},
-		}
+		})
 		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
 		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
 			return *m.MetricName == "m2" && m.Values != nil &&
 				*m.Values[0] == 1.5 && *m.Counts[0] == 2
 		}))
+	}
+}
+
+func commonDist(val *metricdata.Distribution) *metricdata.Metric {
+	return &metricdata.Metric{
+		Descriptor: metricdata.Descriptor{
+			Name: "m2",
+			Type: metricdata.TypeCumulativeDistribution,
+			LabelKeys: []metricdata.LabelKey{
+				{
+					Key: "name",
+				},
+			},
+		},
+		Resource: nil,
+		TimeSeries: []*metricdata.TimeSeries{
+			{
+				LabelValues: []metricdata.LabelValue{
+					{
+						Value:   "jack",
+						Present: true,
+					},
+				},
+				StartTime: time.Now(),
+				Points: []metricdata.Point{
+					{
+						Time:  time.Now(),
+						Value: val,
+					},
+				},
+			},
+		},
 	}
 }
