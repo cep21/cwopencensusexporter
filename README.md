@@ -44,6 +44,10 @@ The open census API does not fully allow first class CloudWatch support.  There 
  bucket them at the level of `stats.Record`.
 4. The layers of abstraction inside opencensus create unnecessary memory allocation that
  could be avoided with a system designed for CloudWatch's aggregation API.
+5. Open census buckets include the concept of [...inf] as the last range in their buckets.  There's no
+ way to represent this range for CloudWatch.  Ideally open census would be able to track maximum (and minimum)
+ values inside a time window so that I could use the min (or max) in the range of my buckets, rather than
+ just assume infinity.
 
 # Contributing
 
