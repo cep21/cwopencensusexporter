@@ -43,7 +43,7 @@ func (m *mockCwclient) wait(ctx context.Context, check func(m *cloudwatch.Metric
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(time.Millisecond):
+		case <-time.After(time.Millisecond * 5):
 			if m.check(check) {
 				return nil
 			}
@@ -52,6 +52,44 @@ func (m *mockCwclient) wait(ctx context.Context, check func(m *cloudwatch.Metric
 }
 
 var _ CloudWatchClient = &mockCwclient{}
+
+func checkSingleGauge(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+	return func(t *testing.T) {
+		m1 := &metricdata.Metric{
+			Descriptor: metricdata.Descriptor{
+				Name: "m1",
+				Type: metricdata.TypeGaugeFloat64,
+				LabelKeys: []metricdata.LabelKey{
+					{
+						Key: "name",
+					},
+				},
+			},
+			Resource: nil,
+			TimeSeries: []*metricdata.TimeSeries{
+				{
+					LabelValues: []metricdata.LabelValue{
+						{
+							Value:   "john",
+							Present: true,
+						},
+					},
+					StartTime: time.Now(),
+					Points: []metricdata.Point{
+						{
+							Time:  time.Now(),
+							Value: 1.0,
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m1}))
+		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
+			return *m.MetricName == "m1"
+		}))
+	}
+}
 
 func TestFullFlow(t *testing.T) {
 	mc := &mockCwclient{}
@@ -78,39 +116,121 @@ func TestFullFlow(t *testing.T) {
 			panic(err)
 		},
 	}
-
-	m1 := &metricdata.Metric{
-		Descriptor: metricdata.Descriptor{
-			Name: "m1",
-			Type: metricdata.TypeGaugeFloat64,
-			LabelKeys: []metricdata.LabelKey{
-				{
-					Key: "name",
-				},
-			},
-		},
-		Resource: nil,
-		TimeSeries: []*metricdata.TimeSeries{
-			{
-				LabelValues: []metricdata.LabelValue{
-					{
-						Value:   "john",
-						Present: true,
-					},
-				},
-				StartTime: time.Now(),
-				Points: []metricdata.Point{
-					{
-						Time:  time.Now(),
-						Value: 1.0,
-					},
-				},
-			},
-		},
-	}
 	require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{{}}))
-	require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m1}))
-	require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
-		return *m.MetricName == "m1"
-	}))
+	t.Run("single_float", checkSingleGauge(mc, &e))
+	t.Run("first_dist", checkFirstDist(mc, &e))
+	t.Run("second_dist", checkSecondDist(mc, &e))
+}
+
+func checkFirstDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+	return func(t *testing.T) {
+		m3 := &metricdata.Metric{
+			Descriptor: metricdata.Descriptor{
+				Name: "m2",
+				Type: metricdata.TypeCumulativeDistribution,
+				LabelKeys: []metricdata.LabelKey{
+					{
+						Key: "name",
+					},
+				},
+			},
+			Resource: nil,
+			TimeSeries: []*metricdata.TimeSeries{
+				{
+					LabelValues: []metricdata.LabelValue{
+						{
+							Value:   "jack",
+							Present: true,
+						},
+					},
+					StartTime: time.Now(),
+					Points: []metricdata.Point{
+						{
+							Time: time.Now(),
+							Value: &metricdata.Distribution{
+								Count:                 10,
+								Sum:                   14,
+								SumOfSquaredDeviation: 0,
+								BucketOptions: &metricdata.BucketOptions{
+									Bounds: []float64{1, 2},
+								},
+								Buckets: []metricdata.Bucket{
+									{
+										Count: 0,
+									},
+									{
+										Count: 4,
+									},
+									{
+										Count: 5,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
+		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
+			return *m.MetricName == "m2" && m.Values != nil &&
+				*m.Values[0] == 1.5 && *m.Counts[0] == 4
+		}))
+	}
+}
+
+func checkSecondDist(mc *mockCwclient, e *Exporter) func(t *testing.T) {
+	return func(t *testing.T) {
+		m3 := &metricdata.Metric{
+			Descriptor: metricdata.Descriptor{
+				Name: "m2",
+				Type: metricdata.TypeCumulativeDistribution,
+				LabelKeys: []metricdata.LabelKey{
+					{
+						Key: "name",
+					},
+				},
+			},
+			Resource: nil,
+			TimeSeries: []*metricdata.TimeSeries{
+				{
+					LabelValues: []metricdata.LabelValue{
+						{
+							Value:   "jack",
+							Present: true,
+						},
+					},
+					StartTime: time.Now(),
+					Points: []metricdata.Point{
+						{
+							Time: time.Now(),
+							Value: &metricdata.Distribution{
+								Count:                 11,
+								Sum:                   15,
+								SumOfSquaredDeviation: 0,
+								BucketOptions: &metricdata.BucketOptions{
+									Bounds: []float64{1, 2},
+								},
+								Buckets: []metricdata.Bucket{
+									{
+										Count: 0,
+									},
+									{
+										Count: 5,
+									},
+									{
+										Count: 5,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, e.ExportMetrics(context.Background(), []*metricdata.Metric{m3}))
+		require.NoError(t, mc.wait(context.Background(), func(m *cloudwatch.MetricDatum) bool {
+			return *m.MetricName == "m2" && m.Value != nil && *m.Value == 1.5
+		}))
+	}
 }

@@ -176,7 +176,7 @@ func setDistribution(datum *cloudwatch.MetricDatum, d *metricdata.Distribution, 
 	}
 	if len(val) == 1 && *counts[0] == 1 {
 		datum.Value = val[0]
-		return nil
+		return datum
 	}
 	datum.Values = val
 	datum.Counts = counts

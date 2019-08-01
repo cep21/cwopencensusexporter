@@ -3,11 +3,8 @@ package cwopencensusexporter
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 	"time"
-
-	"github.com/aws/aws-sdk-go/aws/awsutil"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -82,7 +79,6 @@ func (b *BatchMetricDatumSender) Run() error {
 				break forloop
 			}
 		}
-		log.Println("sending to cloudwatch", awsutil.Prettify(toSend))
 		_, err := b.CloudWatchClient.PutMetricDataWithContext(context.Background(), &cloudwatch.PutMetricDataInput{
 			MetricData: toSend,
 			Namespace:  b.namespace(),
