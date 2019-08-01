@@ -52,5 +52,3 @@ The open census API does not fully allow first class CloudWatch support.  There 
 # Contributing
 
 Make sure your tests pass CI/CD pipeline which includes running `make fix lint test` locally.
-You'll need an AWS account to verify integration tests, which should also pass `make integration_test`.
-I recommend opening a github issue to discuss your ideas before contributing code.

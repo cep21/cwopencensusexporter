@@ -7,10 +7,6 @@ build:
 test:
 	env "GORACE=halt_on_error=1" go test -benchtime 1ns -race -bench . -timeout 5s -v ./...
 
-# Run integration tests
-integration_test:
-	env "GORACE=halt_on_error=1" go test -benchtime 1ns -race -bench . -tags=integration -v ./...
-
 # Run unit tests
 test_coverage:
 	go test -v -covermode=count -coverprofile=coverage.out ./...
