@@ -2,11 +2,12 @@ package cwopencensusexporter_test
 
 import (
 	"context"
+	"log"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"github.com/cep21/cwopencensusexporter"
 	"go.opencensus.io/metric/metricexport"
-	"log"
 )
 
 func ExampleExporter_ExportMetrics() {
