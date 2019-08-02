@@ -4,7 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/cep21/cwopencensusexporter?status.svg)](https://godoc.org/github.com/cep21/cwopencensusexporter)
 [![Coverage Status](https://coveralls.io/repos/github/cep21/cwopencensusexporter/badge.svg)](https://coveralls.io/github/cep21/cwopencensusexporter)
 
-cwopencensusexporter implements the opencensus Exporter API and allows you to send open census metrics to cloudwatch
+cwopencensusexporter implements the [opencensus](https://opencensus.io/) Exporter API and allows you to send open census metrics to [cloudwatch](https://aws.amazon.com/cloudwatch/).
 
 # Example
 
